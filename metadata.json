@@ -1,0 +1,6 @@
+{
+  "name": "Highway Rush: Oncoming Traffic Racer",
+  "description": "High-octane 3D arcade highway racing game where you dodge high-speed oncoming traffic, execute thrilling near-misses, and boost to survive.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
