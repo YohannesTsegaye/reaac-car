@@ -211,20 +211,34 @@ export function createPlayerCar(bodyColorHex: string = '#38bdf8'): {
 
   // 9. Nitro flame meshes (cones at rear exhausts shooting backward towards camera -Z)
   const nitroFlames: THREE.Mesh[] = [];
-  const flameGeom = new THREE.ConeGeometry(0.12, 0.65, 8);
-  flameGeom.rotateX(Math.PI / 2); // tip points towards -Z
-  const flameMaterial = new THREE.MeshBasicMaterial({
-    color: 0x00f0ff,
+  // Cone default has apex at +Y. Rotating by -Math.PI / 2 points the apex straight along -Z (behind the car)
+  const outerFlameGeom = new THREE.ConeGeometry(0.20, 1.3, 10);
+  outerFlameGeom.rotateX(-Math.PI / 2);
+  const outerFlameMaterial = new THREE.MeshBasicMaterial({
+    color: 0x06b6d4,
     transparent: true,
-    opacity: 0.9,
+    opacity: 0.88,
   });
 
-  const flameL = new THREE.Mesh(flameGeom, flameMaterial);
-  flameL.position.set(0.35, 0.28, -2.3);
+  const innerFlameGeom = new THREE.ConeGeometry(0.10, 0.9, 8);
+  innerFlameGeom.rotateX(-Math.PI / 2);
+  const innerFlameMaterial = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.95,
+  });
+
+  const flameL = new THREE.Mesh(outerFlameGeom, outerFlameMaterial);
+  flameL.position.set(0.35, 0.28, -2.4);
   flameL.visible = false;
-  const flameR = new THREE.Mesh(flameGeom, flameMaterial);
-  flameR.position.set(-0.35, 0.28, -2.3);
+  const flameLInner = new THREE.Mesh(innerFlameGeom, innerFlameMaterial);
+  flameL.add(flameLInner);
+
+  const flameR = new THREE.Mesh(outerFlameGeom, outerFlameMaterial);
+  flameR.position.set(-0.35, 0.28, -2.4);
   flameR.visible = false;
+  const flameRInner = new THREE.Mesh(innerFlameGeom, innerFlameMaterial);
+  flameR.add(flameRInner);
 
   carGroup.add(flameL);
   carGroup.add(flameR);
@@ -461,6 +475,27 @@ export function createEnemyVehicle(type: EnemyType, colorHex: string): {
     });
   }
 
+  // Forward headlight projection beams on asphalt facing -Z towards player
+  // Makes oncoming vehicles instantly visible and dramatic from over 150m away!
+  const beamGeom = new THREE.PlaneGeometry(width * 1.25, 15);
+  beamGeom.rotateX(-Math.PI / 2);
+  const beamMat = new THREE.MeshBasicMaterial({
+    color: 0xfff3c4,
+    transparent: true,
+    opacity: 0.25,
+    depthWrite: false,
+  });
+  const beamMesh = new THREE.Mesh(beamGeom, beamMat);
+  beamMesh.position.set(0, 0.02, -(length / 2 + 7.5));
+  group.add(beamMesh);
+
+  // Scale up traffic vehicles slightly for improved silhouette visibility
+  const trafficScale = 1.15;
+  group.scale.set(trafficScale, trafficScale, trafficScale);
+  width *= trafficScale;
+  length *= trafficScale;
+  height *= trafficScale;
+
   return {
     group,
     width,
@@ -540,13 +575,13 @@ export function createRoadChunk(
   road.receiveShadow = true;
   group.add(road);
 
-  // 2. Road Markings (Dashed white lines between lanes + solid yellow edge lines)
+  // 2. Road Markings (Crisp, high-contrast dashed white lines + bright golden yellow shoulder lines)
   const laneWidth = roadWidth / laneCount;
-  // Dashed lane dividers
+  // Dashed lane dividers (wider and crisper for high-speed road readability)
   for (let l = 1; l < laneCount; l++) {
     const laneX = -roadWidth / 2 + l * laneWidth;
     for (let z = -chunkLength / 2 + 3; z < chunkLength / 2; z += 8) {
-      const stripeGeom = new THREE.PlaneGeometry(0.2, 4);
+      const stripeGeom = new THREE.PlaneGeometry(0.35, 4.8);
       stripeGeom.rotateX(-Math.PI / 2);
       const stripeMat = new THREE.MeshBasicMaterial({
         color: 0xffffff,
@@ -555,23 +590,23 @@ export function createRoadChunk(
         polygonOffsetUnits: -1,
       });
       const stripe = new THREE.Mesh(stripeGeom, stripeMat);
-      stripe.position.set(laneX, 0.015, z);
+      stripe.position.set(laneX, 0.016, z);
       group.add(stripe);
     }
   }
 
-  // Solid shoulder edge lines (Yellow/Amber)
-  [-roadWidth / 2 + 0.4, roadWidth / 2 - 0.4].forEach((edgeX) => {
-    const edgeGeom = new THREE.PlaneGeometry(0.3, chunkLength);
+  // Solid shoulder edge lines (Bright vibrant amber gold)
+  [-roadWidth / 2 + 0.45, roadWidth / 2 - 0.45].forEach((edgeX) => {
+    const edgeGeom = new THREE.PlaneGeometry(0.48, chunkLength);
     edgeGeom.rotateX(-Math.PI / 2);
     const edgeMat = new THREE.MeshBasicMaterial({
-      color: 0xf59e0b,
+      color: 0xfbbf24,
       polygonOffset: true,
       polygonOffsetFactor: -1,
       polygonOffsetUnits: -1,
     });
     const edgeLine = new THREE.Mesh(edgeGeom, edgeMat);
-    edgeLine.position.set(edgeX, 0.016, 0);
+    edgeLine.position.set(edgeX, 0.017, 0);
     group.add(edgeLine);
   });
 

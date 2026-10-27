@@ -30,8 +30,8 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   }, [isNewHighScore]);
 
   return (
-    <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-30 select-none">
-      <div className="w-full max-w-lg bg-slate-900 border-2 border-red-500/40 rounded-3xl p-6 md:p-8 shadow-[0_0_50px_rgba(239,68,68,0.3)] flex flex-col items-center text-center animate-in fade-in zoom-in duration-200">
+    <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-30 select-none">
+      <div className="w-full max-w-lg max-h-[92dvh] overflow-y-auto bg-slate-900 border-2 border-red-500/40 rounded-3xl p-5 sm:p-6 md:p-8 shadow-[0_0_50px_rgba(239,68,68,0.3)] flex flex-col items-center text-center animate-in fade-in zoom-in duration-200">
         {/* Crash Icon Banner */}
         <div className="w-16 h-16 rounded-2xl bg-rose-500/20 border border-rose-500/50 flex items-center justify-center mb-4">
           <Skull className="w-9 h-9 text-rose-500 animate-pulse" />
@@ -100,16 +100,24 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-3 w-full">
           <button
-            onClick={onRestart}
-            className="flex-1 py-3.5 px-6 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-extrabold text-base rounded-2xl shadow-lg flex items-center justify-center gap-2 transform active:scale-95 transition-all cursor-pointer"
+            tabIndex={-1}
+            onClick={(e) => {
+              (e.currentTarget as HTMLButtonElement).blur();
+              onRestart();
+            }}
+            className="flex-1 py-3.5 px-6 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-extrabold text-base rounded-2xl shadow-lg flex items-center justify-center gap-2 transform active:scale-95 transition-all cursor-pointer focus:outline-none"
           >
             <RotateCcw className="w-5 h-5" />
             <span>TRY AGAIN (SPACE)</span>
           </button>
 
           <button
-            onClick={onHome}
-            className="py-3.5 px-5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold text-sm rounded-2xl flex items-center justify-center gap-2 transition-colors cursor-pointer"
+            tabIndex={-1}
+            onClick={(e) => {
+              (e.currentTarget as HTMLButtonElement).blur();
+              onHome();
+            }}
+            className="py-3.5 px-5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold text-sm rounded-2xl flex items-center justify-center gap-2 transition-colors cursor-pointer focus:outline-none"
           >
             <Home className="w-4 h-4" />
             <span>GARAGE</span>

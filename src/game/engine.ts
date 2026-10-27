@@ -112,6 +112,10 @@ export class GameEngine {
   // Title screen camera orbit angle
   private titleOrbitAngle: number = 0;
 
+  // 3D Speed streak lines
+  private speedLines!: THREE.LineSegments;
+  private statsUpdateTimer: number = 0;
+
   constructor(container: HTMLElement, callbacks: EngineCallbacks) {
     this.container = container;
     this.callbacks = callbacks;
@@ -124,6 +128,7 @@ export class GameEngine {
 
     this.detectSoftwareGl();
     this.initThree();
+    this.initAtmosphereAndSky();
     this.initRoad();
     this.initPlayer();
     this.initParticlePool();
@@ -136,16 +141,9 @@ export class GameEngine {
 
   private detectSoftwareGl() {
     try {
-      const gl = document.createElement('canvas').getContext('webgl2');
-      if (!gl) {
-        this.isSoftwareGl = true;
-        return;
-      }
-      const ext = gl.getExtension('WEBGL_debug_renderer_info');
-      const param = ext ? ext.UNMASKED_RENDERER_WEBGL : gl.RENDERER;
-      const gpu = String(gl.getParameter(param));
-      gl.getExtension('WEBGL_lose_context')?.loseContext();
-      this.isSoftwareGl = /SwiftShader|llvmpipe|softpipe|Software|Basic Render/i.test(gpu);
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+      this.isSoftwareGl = !gl;
     } catch {
       this.isSoftwareGl = false;
     }
@@ -170,11 +168,11 @@ export class GameEngine {
 
     this.container.appendChild(this.renderer.domElement);
 
-    // Scene with dark midnight highway fog
+    // Scene with dark midnight cyberpunk atmosphere and smooth horizon fog
     this.scene = new THREE.Scene();
-    const skyColor = new THREE.Color(0x060913);
+    const skyColor = new THREE.Color(0x070b19);
     this.scene.background = skyColor;
-    this.scene.fog = new THREE.FogExp2(0x060913, 0.012);
+    this.scene.fog = new THREE.FogExp2(0x0c1328, 0.0075);
 
     // Camera
     this.camera = new THREE.PerspectiveCamera(65, width / height, 0.5, 300);
@@ -212,6 +210,101 @@ export class GameEngine {
     // 3. Subtle ambient light
     const ambLight = new THREE.AmbientLight(0x1e293b, 0.6);
     this.scene.add(ambLight);
+  }
+
+  private initAtmosphereAndSky() {
+    // 1. Twinkling Starfield in the upper night sky
+    const starCount = 300;
+    const starGeom = new THREE.BufferGeometry();
+    const starPositions = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount; i++) {
+      starPositions[i * 3] = (Math.random() - 0.5) * 260;
+      starPositions[i * 3 + 1] = 14 + Math.random() * 85;
+      starPositions[i * 3 + 2] = -40 + Math.random() * 280;
+    }
+    starGeom.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+    const starMat = new THREE.PointsMaterial({
+      color: 0xc8ddff,
+      size: 1.4,
+      transparent: true,
+      opacity: 0.85,
+    });
+    const stars = new THREE.Points(starGeom, starMat);
+    this.scene.add(stars);
+
+    // 2. Distant Horizon Glow Backdrop (cyberpunk neon gradient blending the road into infinity)
+    const horizonCanvas = document.createElement('canvas');
+    horizonCanvas.width = 256;
+    horizonCanvas.height = 256;
+    const hctx = horizonCanvas.getContext('2d')!;
+    const grad = hctx.createLinearGradient(0, 0, 0, 256);
+    grad.addColorStop(0, 'rgba(8, 12, 26, 0)');
+    grad.addColorStop(0.45, 'rgba(49, 46, 129, 0.4)');
+    grad.addColorStop(0.8, 'rgba(236, 72, 153, 0.45)');
+    grad.addColorStop(1, 'rgba(245, 158, 11, 0.7)');
+    hctx.fillStyle = grad;
+    hctx.fillRect(0, 0, 256, 256);
+
+    const horizonTex = new THREE.CanvasTexture(horizonCanvas);
+    const horizonGeom = new THREE.PlaneGeometry(320, 75);
+    const horizonMat = new THREE.MeshBasicMaterial({
+      map: horizonTex,
+      transparent: true,
+      depthWrite: false,
+    });
+    const horizonMesh = new THREE.Mesh(horizonGeom, horizonMat);
+    horizonMesh.position.set(0, 24, 235);
+    this.scene.add(horizonMesh);
+
+    // 3. Distant City Skyline Silhouettes with illuminated windows
+    const cityGroup = new THREE.Group();
+    const bldgMat = new THREE.MeshStandardMaterial({
+      color: 0x090e1f,
+      roughness: 0.8,
+    });
+    const windowMat = new THREE.MeshBasicMaterial({ color: 0xffd166 });
+    for (let i = 0; i < 28; i++) {
+      const bx = -140 + i * 10 + (Math.random() - 0.5) * 4;
+      const bw = 6 + Math.random() * 5;
+      const bh = 14 + Math.random() * 32;
+      const bz = 224 + Math.random() * 14;
+      const bldg = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, 6), bldgMat);
+      bldg.position.set(bx, bh / 2, bz);
+      cityGroup.add(bldg);
+
+      // Lit skyscraper window dots
+      if (Math.random() < 0.75) {
+        const win = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.1), windowMat);
+        win.position.set(bx + (Math.random() - 0.5) * (bw - 2), bh * 0.7 + Math.random() * 4, bz - 3.01);
+        cityGroup.add(win);
+      }
+    }
+    this.scene.add(cityGroup);
+
+    // 4. Dynamic 3D Speed Streak Lines
+    const numLines = 36;
+    const lineGeom = new THREE.BufferGeometry();
+    const positions = new Float32Array(numLines * 2 * 3);
+    for (let i = 0; i < numLines; i++) {
+      const lx = (Math.random() - 0.5) * 22;
+      const ly = 0.5 + Math.random() * 5.0;
+      const lz = -10 + Math.random() * 80;
+      const len = 4.5;
+      positions[i * 6] = lx;
+      positions[i * 6 + 1] = ly;
+      positions[i * 6 + 2] = lz;
+      positions[i * 6 + 3] = lx;
+      positions[i * 6 + 4] = ly;
+      positions[i * 6 + 5] = lz + len;
+    }
+    lineGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const lineMat = new THREE.LineBasicMaterial({
+      color: 0x38bdf8,
+      transparent: true,
+      opacity: 0.25,
+    });
+    this.speedLines = new THREE.LineSegments(lineGeom, lineMat);
+    this.scene.add(this.speedLines);
   }
 
   private initRoad() {
@@ -352,6 +445,12 @@ export class GameEngine {
 
   private bindEvents() {
     window.addEventListener('keydown', (e) => {
+      // Prevent browser default on Space (prevents spacebar from activating focused buttons like Camera)
+      if (e.code === 'Space') {
+        e.preventDefault();
+        (document.activeElement as HTMLElement)?.blur();
+      }
+
       this.keysHeld[e.code] = true;
 
       // Handle edge-triggered actions
@@ -373,6 +472,9 @@ export class GameEngine {
     });
 
     window.addEventListener('keyup', (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+      }
       this.keysHeld[e.code] = false;
     });
 
@@ -517,21 +619,23 @@ export class GameEngine {
 
   private updateTitleScreen(dt: number) {
     this.titleOrbitAngle += dt * 0.4;
-    // Smooth cinematic camera orbit around hero car
-    const radius = 8.5;
+    const isPortrait = this.camera.aspect < 1.0;
+    // Smooth cinematic camera orbit around hero car, framed for desktop and mobile portrait
+    const radius = isPortrait ? 11.2 : 8.5;
     this.camera.position.x = Math.sin(this.titleOrbitAngle) * radius;
     this.camera.position.z = Math.cos(this.titleOrbitAngle) * radius;
-    this.camera.position.y = 3.2 + Math.sin(this.titleOrbitAngle * 0.5) * 0.5;
-    this.camera.lookAt(0, 0.8, 0);
+    this.camera.position.y = (isPortrait ? 4.2 : 3.2) + Math.sin(this.titleOrbitAngle * 0.5) * 0.5;
+    this.camera.lookAt(0, isPortrait ? 0.6 : 0.8, 0);
 
     // Gently rotate wheels
     this.playerWheels.forEach((w) => (w.rotation.x += dt * 2));
   }
 
   private updateGameOver(dt: number) {
+    const isPortrait = this.camera.aspect < 1.0;
     // Camera slowly drifts back while crash smoke rises
-    this.camera.position.y = THREE.MathUtils.damp(this.camera.position.y, 6.0, 1.5, dt);
-    this.camera.position.z = THREE.MathUtils.damp(this.camera.position.z, -10.0, 1.2, dt);
+    this.camera.position.y = THREE.MathUtils.damp(this.camera.position.y, isPortrait ? 7.5 : 6.0, 1.5, dt);
+    this.camera.position.z = THREE.MathUtils.damp(this.camera.position.z, isPortrait ? -12.5 : -10.0, 1.2, dt);
     this.camera.lookAt(this.playerCarGroup.position);
 
     this.updateParticles(dt);
@@ -579,11 +683,12 @@ export class GameEngine {
       this.nitroEnergy = Math.min(100, this.nitroEnergy + dt * 4);
     }
 
-    // Toggle nitro flame meshes
+    // Toggle nitro flame meshes with dynamic fiery pulse
     this.playerNitroFlames.forEach((flame) => {
       flame.visible = this.isBoosting;
       if (this.isBoosting) {
-        flame.scale.y = 0.8 + Math.random() * 0.5;
+        const flicker = 0.9 + Math.random() * 0.5;
+        flame.scale.set(0.9 + Math.random() * 0.3, flicker, 0.9 + Math.random() * 0.3);
       }
     });
 
@@ -641,6 +746,29 @@ export class GameEngine {
         chunk.position.z += this.chunkLength * this.numChunks;
       }
     });
+
+    // 5b. Stream 3D Speed Lines past camera
+    if (this.speedLines) {
+      const lineSpeed = (metersPerSec * (this.isBoosting ? 2.6 : 1.4)) * dt;
+      const lineLen = this.isBoosting ? 10.0 : 5.0;
+      const posAttr = this.speedLines.geometry.attributes.position as THREE.BufferAttribute;
+      const arr = posAttr.array as Float32Array;
+      for (let i = 0; i < 36; i++) {
+        arr[i * 6 + 2] -= lineSpeed;
+        arr[i * 6 + 5] = arr[i * 6 + 2] + lineLen;
+        if (arr[i * 6 + 2] < -15) {
+          arr[i * 6 + 2] += 95;
+          arr[i * 6 + 5] = arr[i * 6 + 2] + lineLen;
+        }
+      }
+      posAttr.needsUpdate = true;
+      (this.speedLines.material as THREE.LineBasicMaterial).opacity = this.isBoosting ? 0.75 : 0.25;
+    }
+
+    // Continuous rumble camera shake during Nitro boost for intense speed feel
+    if (this.isBoosting) {
+      this.cameraShakeIntensity = Math.max(this.cameraShakeIntensity, 0.22);
+    }
 
     // 6. Spawn Oncoming Enemies
     // Spawns become slightly faster as distance increases (difficulty ramp)
@@ -792,20 +920,24 @@ export class GameEngine {
     // 11. Update Camera with Shake
     this.updateCamera(dt);
 
-    // 12. Send Stats Update to UI
-    this.callbacks.onStatsUpdate({
-      score: this.score,
-      highScore: Math.max(this.highScore, this.score),
-      distance: Math.floor(this.distance),
-      speedKmh: Math.floor(this.playerSpeed),
-      topSpeedKmh: Math.floor(this.topSpeedKmh),
-      nitro: Math.floor(this.nitroEnergy),
-      isBoosting: this.isBoosting,
-      combo: this.combo,
-      comboTimer: this.comboTimer,
-      nearMissCount: this.nearMissCount,
-      multiplier: 1 + this.combo * 0.5,
-    });
+    // 12. Send Stats Update to UI (throttled to 20Hz / 50ms to prevent React re-render warnings)
+    this.statsUpdateTimer += dt;
+    if (this.statsUpdateTimer >= 0.05) {
+      this.statsUpdateTimer = 0;
+      this.callbacks.onStatsUpdate({
+        score: this.score,
+        highScore: Math.max(this.highScore, this.score),
+        distance: Math.floor(this.distance),
+        speedKmh: Math.floor(this.playerSpeed),
+        topSpeedKmh: Math.floor(this.topSpeedKmh),
+        nitro: Math.floor(this.nitroEnergy),
+        isBoosting: this.isBoosting,
+        combo: this.combo,
+        comboTimer: this.comboTimer,
+        nearMissCount: this.nearMissCount,
+        multiplier: 1 + this.combo * 0.5,
+      });
+    }
   }
 
   private triggerNearMiss(enemy: EnemyCar) {
@@ -926,23 +1058,30 @@ export class GameEngine {
       this.cameraShakeIntensity = Math.max(0, this.cameraShakeIntensity - dt * 2.5);
     }
 
+    // Check if device/viewport is in portrait orientation
+    const isPortrait = this.camera.aspect < 1.0;
+
     // Dynamic FOV when boosting (warp speed feeling)
-    const targetFov = this.isBoosting ? 74 : 65;
+    const baseFov = isPortrait ? 68 : 65;
+    const targetFov = this.isBoosting ? (isPortrait ? 78 : 74) : baseFov;
     this.camera.fov = THREE.MathUtils.damp(this.camera.fov, targetFov, 4.0, dt);
     this.camera.updateProjectionMatrix();
 
     if (this.cameraMode === 'CHASE') {
       // Third-person smooth chase behind player car
+      // Elevate camera slightly and tilt downward so player's entire supercar is cleanly framed
+      // higher up on screen, with full visibility of rear spoiler and nitro exhaust flames
       const targetCamX = this.playerX * 0.75 + shakeX;
-      const targetCamY = 3.6 + shakeY;
-      const targetCamZ = -6.5;
+      const targetCamY = (isPortrait ? 6.2 : 4.8) + shakeY;
+      const targetCamZ = isPortrait ? -11.5 : -8.5;
 
       this.camera.position.x = THREE.MathUtils.damp(this.camera.position.x, targetCamX, 9.0, dt);
       this.camera.position.y = THREE.MathUtils.damp(this.camera.position.y, targetCamY, 9.0, dt);
       this.camera.position.z = THREE.MathUtils.damp(this.camera.position.z, targetCamZ, 9.0, dt);
 
-      // Look slightly ahead of player car into oncoming traffic
-      _vec3A.set(this.playerX * 0.3, 1.4, 25);
+      // Pitching lookAt: when lookAt Y is 0.05 at Z=26, the car at (playerX, 0, 0)
+      // sits comfortably in the lower third (~25% above the bottom edge) with zero clipping!
+      _vec3A.set(this.playerX * 0.3, isPortrait ? 0.05 : 0.4, isPortrait ? 26 : 24);
       this.camera.lookAt(_vec3A);
     } else if (this.cameraMode === 'HOOD') {
       // First-person bumper/hood perspective: highest adrenaline!
@@ -952,8 +1091,10 @@ export class GameEngine {
     } else if (this.cameraMode === 'TOP_ANGLED') {
       // Classic arcade top-down angled camera
       const targetCamX = this.playerX * 0.5 + shakeX;
-      this.camera.position.set(targetCamX, 9.5 + shakeY, -9.0);
-      _vec3A.set(this.playerX * 0.5, 0.5, 12);
+      const targetCamY = (isPortrait ? 13.5 : 10.0) + shakeY;
+      const targetCamZ = isPortrait ? -13.0 : -9.5;
+      this.camera.position.set(targetCamX, targetCamY, targetCamZ);
+      _vec3A.set(this.playerX * 0.5, 0.2, isPortrait ? 16 : 13);
       this.camera.lookAt(_vec3A);
     }
   }

@@ -113,7 +113,7 @@ export default function App() {
   };
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-slate-950 font-sans select-none">
+    <div className="fixed inset-0 w-full h-[100dvh] overflow-hidden bg-slate-950 font-sans select-none touch-none">
       {/* Isolated Three.js WebGL Canvas Mount */}
       <div ref={mountRef} className="absolute inset-0 w-full h-full z-0" />
 
