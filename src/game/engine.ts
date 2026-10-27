@@ -52,7 +52,7 @@ export class GameEngine {
   private readonly roadWidth = 20;
   private readonly laneCount = 4;
   private readonly laneWidth = 5; // 20 / 4
-  private laneXCoords: number[] = [-7.5, -2.5, 2.5, 7.5];
+  private laneXCoords: number[] = [7.5, 2.5, -2.5, -7.5];
 
   // Road chunks for infinite scrolling illusion
   private roadChunks: THREE.Group[] = [];
@@ -560,15 +560,15 @@ export class GameEngine {
       this.isBoosting = true;
       this.nitroEnergy = Math.max(0, this.nitroEnergy - dt * 25);
       soundEngine.setNitroActive(true);
-      // Spawn nitro flame particles
+      // Spawn nitro flame particles behind player car
       if (Math.random() < 0.7) {
         this.spawnParticle(
           this.playerX + (Math.random() * 0.4 - 0.2),
           0.3,
-          1.8,
+          -2.2,
           (Math.random() - 0.5) * 0.8,
           Math.random() * 0.4,
-          2.5 + Math.random() * 2,
+          -2.5 - Math.random() * 2,
           0.25
         );
       }
@@ -611,20 +611,20 @@ export class GameEngine {
     const speedRatio = (this.playerSpeed - this.minSpeed) / (this.maxBoostSpeed - this.minSpeed);
     soundEngine.updateEnginePitch(Math.max(0, Math.min(1, speedRatio)), this.isBoosting);
 
-    // 4. Player Steering Physics with natural tilt & inertia
+    // 4. Player Steering Physics: Touching Left moves car Left, Touching Right moves car Right
     const steerSpeed = 16.0 * (1 + (this.isBoosting ? 0.2 : 0));
-    this.playerX += steerDir * steerSpeed * dt;
+    this.playerX -= steerDir * steerSpeed * dt;
     // Clamp within highway guardrails
     const maxRoadX = this.roadWidth / 2 - 1.4;
     this.playerX = Math.max(-maxRoadX, Math.min(maxRoadX, this.playerX));
 
     this.playerCarGroup.position.x = this.playerX;
 
-    // Body roll/tilt when turning
+    // Body roll/tilt and turn yaw when steering
     const targetTilt = -steerDir * 0.08;
     this.currentSteerTilt = THREE.MathUtils.damp(this.currentSteerTilt, targetTilt, 8.0, dt);
     this.playerCarGroup.rotation.z = this.currentSteerTilt;
-    this.playerCarGroup.rotation.y = -steerDir * 0.05;
+    this.playerCarGroup.rotation.y = -steerDir * 0.06;
 
     // Spin player wheels
     const wheelSpin = (metersPerSec / 0.35) * dt;
@@ -681,7 +681,7 @@ export class GameEngine {
         enemy.blinkerTimer += dt;
         // Flash blinker light every 0.25s
         const isBlinkerOn = Math.floor(enemy.blinkerTimer * 4) % 2 === 0;
-        const targetBlinker = enemy.targetLane > enemy.lane ? enemy.rightBlinker : enemy.leftBlinker;
+        const targetBlinker = enemy.targetLane < enemy.lane ? enemy.leftBlinker : enemy.rightBlinker;
         if (targetBlinker) {
           (targetBlinker.material as THREE.MeshBasicMaterial).color.setHex(
             isBlinkerOn ? 0xffaa00 : 0x442200

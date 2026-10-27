@@ -142,64 +142,64 @@ export function createPlayerCar(bodyColorHex: string = '#38bdf8'): {
   body.castShadow = true;
   carGroup.add(body);
 
-  // Hood wedge slope
+  // Hood wedge slope (front of car is at +Z)
   const hoodGeom = new THREE.BoxGeometry(1.82, 0.22, 1.4);
   const hood = new THREE.Mesh(hoodGeom, bodyMaterial);
-  hood.position.set(0, 0.65, -1.1);
-  hood.rotation.x = 0.08;
+  hood.position.set(0, 0.65, 1.1);
+  hood.rotation.x = -0.08;
   carGroup.add(hood);
 
   // 3. Cabin cockpit glass canopy
   const cabinGeom = new THREE.BoxGeometry(1.5, 0.45, 1.8);
   const cabin = new THREE.Mesh(cabinGeom, glassTintedMaterial);
-  cabin.position.set(0, 0.88, 0.15);
+  cabin.position.set(0, 0.88, -0.15);
   carGroup.add(cabin);
 
-  // 4. Front Splitter
+  // 4. Front Splitter (at +Z)
   const splitterGeom = new THREE.BoxGeometry(1.92, 0.06, 0.3);
   const splitter = new THREE.Mesh(splitterGeom, underbodyMaterial);
-  splitter.position.set(0, 0.16, -2.1);
+  splitter.position.set(0, 0.16, 2.1);
   carGroup.add(splitter);
 
-  // 5. LED Headlights
+  // 5. LED Headlights (facing forward into the road ahead +Z)
   const headlightLamps = new THREE.Group();
   const hlGeom = new THREE.BoxGeometry(0.35, 0.1, 0.1);
   const hlLeft = new THREE.Mesh(hlGeom, headlightGlowMaterial);
-  hlLeft.position.set(-0.7, 0.52, -2.01);
+  hlLeft.position.set(0.7, 0.52, 2.01);
   const hlRight = new THREE.Mesh(hlGeom, headlightGlowMaterial);
-  hlRight.position.set(0.7, 0.52, -2.01);
+  hlRight.position.set(-0.7, 0.52, 2.01);
   headlightLamps.add(hlLeft);
   headlightLamps.add(hlRight);
   carGroup.add(headlightLamps);
 
-  // 6. Rear Taillight Lightbar
+  // 6. Rear Taillight Lightbar (facing camera behind at -Z)
   const tlGeom = new THREE.BoxGeometry(1.7, 0.08, 0.08);
   const taillight = new THREE.Mesh(tlGeom, taillightGlowMaterial);
-  taillight.position.set(0, 0.58, 2.01);
+  taillight.position.set(0, 0.58, -2.01);
   carGroup.add(taillight);
 
-  // 7. Rear Spoiler / Wing
+  // 7. Rear Spoiler / Wing (at -Z)
   const wingGroup = new THREE.Group();
   const wingBladeGeom = new THREE.BoxGeometry(1.85, 0.06, 0.35);
   const wingBlade = new THREE.Mesh(wingBladeGeom, underbodyMaterial);
-  wingBlade.position.set(0, 1.05, 1.85);
+  wingBlade.position.set(0, 1.05, -1.85);
 
   const strutGeom = new THREE.BoxGeometry(0.08, 0.35, 0.1);
   const strutL = new THREE.Mesh(strutGeom, underbodyMaterial);
-  strutL.position.set(-0.6, 0.85, 1.85);
+  strutL.position.set(0.6, 0.85, -1.85);
   const strutR = new THREE.Mesh(strutGeom, underbodyMaterial);
-  strutR.position.set(0.6, 0.85, 1.85);
+  strutR.position.set(-0.6, 0.85, -1.85);
 
   wingGroup.add(wingBlade, strutL, strutR);
   carGroup.add(wingGroup);
 
-  // 8. Four wheels
+  // 8. Four wheels (+X is screen Left, -X is screen Right, +Z is front, -Z is rear)
   const wheels: THREE.Group[] = [];
   const wheelPositions = [
-    { x: -0.98, y: 0.35, z: -1.3 }, // Front Left
-    { x: 0.98, y: 0.35, z: -1.3 },  // Front Right
-    { x: -0.98, y: 0.35, z: 1.3 },  // Rear Left
-    { x: 0.98, y: 0.35, z: 1.3 },   // Rear Right
+    { x: 0.98, y: 0.35, z: 1.3 },   // Front Left
+    { x: -0.98, y: 0.35, z: 1.3 },  // Front Right
+    { x: 0.98, y: 0.35, z: -1.3 },  // Rear Left
+    { x: -0.98, y: 0.35, z: -1.3 }, // Rear Right
   ];
 
   wheelPositions.forEach((pos) => {
@@ -209,10 +209,10 @@ export function createPlayerCar(bodyColorHex: string = '#38bdf8'): {
     wheels.push(wheel);
   });
 
-  // 9. Nitro flame meshes (cones at rear exhausts)
+  // 9. Nitro flame meshes (cones at rear exhausts shooting backward towards camera -Z)
   const nitroFlames: THREE.Mesh[] = [];
   const flameGeom = new THREE.ConeGeometry(0.12, 0.65, 8);
-  flameGeom.rotateX(-Math.PI / 2);
+  flameGeom.rotateX(Math.PI / 2); // tip points towards -Z
   const flameMaterial = new THREE.MeshBasicMaterial({
     color: 0x00f0ff,
     transparent: true,
@@ -220,10 +220,10 @@ export function createPlayerCar(bodyColorHex: string = '#38bdf8'): {
   });
 
   const flameL = new THREE.Mesh(flameGeom, flameMaterial);
-  flameL.position.set(-0.35, 0.28, 2.3);
+  flameL.position.set(0.35, 0.28, -2.3);
   flameL.visible = false;
   const flameR = new THREE.Mesh(flameGeom, flameMaterial);
-  flameR.position.set(0.35, 0.28, 2.3);
+  flameR.position.set(-0.35, 0.28, -2.3);
   flameR.visible = false;
 
   carGroup.add(flameL);
@@ -446,9 +446,9 @@ export function createEnemyVehicle(type: EnemyType, colorHex: string): {
     // Blinker lights on front corners (crucial for erratic lane-changer telegraph!)
     const blinkerGeom = new THREE.BoxGeometry(0.14, 0.1, 0.08);
     leftBlinker = new THREE.Mesh(blinkerGeom, amberBlinkerOffMaterial);
-    leftBlinker.position.set(-0.85, 0.5, -2.01);
+    leftBlinker.position.set(0.85, 0.5, -2.01);
     rightBlinker = new THREE.Mesh(blinkerGeom, amberBlinkerOffMaterial);
-    rightBlinker.position.set(0.85, 0.5, -2.01);
+    rightBlinker.position.set(-0.85, 0.5, -2.01);
     group.add(leftBlinker, rightBlinker);
 
     // Wheels
